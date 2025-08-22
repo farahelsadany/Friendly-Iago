@@ -1,0 +1,9 @@
+# Friendly Lago Backend Environment Variables
+# Copy this file to .env and fill in your actual values
+
+# HuggingFace API Key - Get one from https://huggingface.co/settings/tokens
+HUGGINGFACE_API_KEY= YOUE HUGGINGFACE_API_KEY
+
+# Server Port (optional, defaults to 8787)
+PORT=8787
+ALLOWED_ORIGINS=*
