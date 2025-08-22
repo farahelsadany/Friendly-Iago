@@ -1,5 +1,5 @@
 ## Overview
-Friendly Lago is an AI-powered system that helps users express their ideas while removing language that could harm others. The goal is to make comments **land with kindness** without changing the user's stance.
+Friendly Lago helps your comments **land with kindness** without changing your stance. It uses **HuggingFace models** to detect toxicity, offensive language, and sentiment, then generates gentler alternatives with Google’s FLAN-T5.
 
 ## Models Used
 
