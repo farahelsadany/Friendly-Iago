@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Friendly Lago Settings</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; }
+    .row { display: grid; grid-template-columns: 220px 1fr; gap: 12px; align-items: center; margin: 12px 0; }
+    h1 { margin: 0 0 12px; }
+    select, input[type="text"] { padding: 8px; border:1px solid #ddd; border-radius: 10px; width: 100%; }
+    button { padding: 8px 12px; border: none; border-radius: 10px; background: #111; color:#fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Friendly Lago Settings</h1>
+  <div class="row">
+    <label>Strictness</label>
+    <select id="lago_strictness">
+      <option value="low">Low (warn rarely)</option>
+      <option value="medium">Medium</option>
+      <option value="high">High (warn proactively)</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Backend URL</label>
+    <input type="text" id="backend_url" placeholder="http://localhost:8787" />
+  </div>
+  <button id="save">Save</button>
+
+  <script type="module">
+    import { DEFAULT_BACKEND_URL } from './config.js';
+    const strictSel = document.getElementById("lago_strictness");
+    const backendInput = document.getElementById("backend_url");
+    const saveBtn = document.getElementById("save");
+
+    chrome.storage.sync.get({ lago_strictness: "medium", lago_backend: DEFAULT_BACKEND_URL }, (v) => {
+      strictSel.value = v.lago_strictness;
+      backendInput.value = v.lago_backend;
+    });
+    saveBtn.addEventListener("click", () => {
+      chrome.storage.sync.set({ lago_strictness: strictSel.value, lago_backend: backendInput.value }, () => {
+        alert("Saved.");
+      });
+    });
+  </script>
+</body>
+</html>
