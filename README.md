@@ -19,7 +19,7 @@ Friendly Iago helps your comments **land with kindness** without changing your s
    - Generates kinder, more inclusive alternatives using the smaller FLAN-T5 model for faster responses
    - Maintains original meaning while improving tone
    - Preserves similar length to the original
-   - Handles tricky cases like positive expletives (e.g., “I fucking love this” → “I really love this”) by keeping positive sentiment intact
+   - Handles tricky cases like positive expletives by keeping positive sentiment intact
 
 ## Core Principles
 
