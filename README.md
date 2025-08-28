@@ -75,19 +75,19 @@ Friendly Iago helps your comments **land with kindness** without changing your s
 
    ```bash
    cp env-template.txt .env
-   ```
+   ````
 
    Then edit `.env` and add your HuggingFace API key:
 
    ```
    HUGGINGFACE_API_KEY=your_actual_api_key_here
-   ```
+   ````
 
 4. **Start the server**:
 
    ```bash
    npm start
-   ```
+   ````
 
 ## API Endpoints
 
@@ -105,7 +105,7 @@ Analyzes a comment and provides suggestions. All endpoints are versioned under `
     "length": "similar"
   }
 }
-```
+````
 
 **Response**:
 
