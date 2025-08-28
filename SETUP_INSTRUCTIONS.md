@@ -1,4 +1,4 @@
-# 🦜 Friendly Lago Setup Instructions
+# 🦜 Friendly Iago Setup Instructions
 
 ## Quick Start Guide
 
@@ -6,7 +6,7 @@
 
 1. Navigate to the backend directory:
    ```bash
-   cd friendly-lago-backend
+   cd friendly-iago-backend
    ```
 
 2. Install dependencies:
@@ -14,7 +14,7 @@
    npm install
    ```
 
-3. Create a `.env` file in the `friendly-lago-backend` directory:
+3. Create a `.env` file in the `friendly-iago-backend` directory:
    ```bash
    cp env-template.txt .env
    ```
@@ -35,7 +35,7 @@
    npm start
    ```
 
-   You should see: `Friendly Lago AI backend listening on :8787`
+   You should see: `Friendly Iago AI backend listening on :8787`
 
 ### 2. Install the Chrome Extension
 
@@ -43,15 +43,15 @@
 
 2. Enable "Developer mode" (toggle in the top right)
 
-3. Click "Load unpacked" and select the `friendly-lago-extension` folder
+3. Click "Load unpacked" and select the `friendly-iago-extension` folder
 
-4. The Friendly Lago extension should now appear in your extensions bar! 🦜
+4. The Friendly Iago extension should now appear in your extensions bar! 🦜
 
 ### 3. Test the Extension
 
-1. Click on the Friendly Lago icon in your browser toolbar
+1. Click on the Friendly Iago icon in your browser toolbar
 2. Type a test comment like: "This is stupid and you're an idiot"
-3. Click "Check with Friendly Lago"
+3. Click "Check with Friendly Iago"
 4. Watch the AI analyze and provide a kinder alternative! ✨
 
 ## What's New in This Version
@@ -64,7 +64,7 @@
 
 ### 🎨 **Elegant & Simple UI**
 - **Clean Design**: White background with professional styling
-- **Logo Integration**: Uses your Friendly Lago logo
+- **Logo Integration**: Uses your Friendly Iago logo
 - **Word Limit**: 200-word limit with real-time counting
 - **Streamlined Interface**: Focus on core functionality
 
@@ -115,7 +115,7 @@
 
 ### File Structure
 ```
-friendly-lago-backend/
+friendly-iago-backend/
 ├── server.js          # AI-powered backend with HuggingFace models
 ├── package.json       # Dependencies (HuggingFace inference API)
 ├── PROMPT.md         # FLAN-T5 prompt template
@@ -123,7 +123,7 @@ friendly-lago-backend/
 ├── env-template.txt  # Template for .env file
 └── README.md         # Detailed technical documentation
 
-friendly-lago-extension/
+friendly-iago-extension/
 ├── manifest.json     # Extension configuration
 ├── popup.html        # Clean, simple popup interface
 ├── popup.css         # Professional styling
@@ -132,7 +132,7 @@ friendly-lago-extension/
 ├── background.js     # Service worker for API communication
 ├── config.js         # Backend URL configuration
 └── icons/
-    ├── logo.png      # Friendly Lago logo
+    ├── logo.png      # Friendly Iago logo
     ├── icon16.png    # Extension icons
     ├── icon48.png
     └── icon128.png
@@ -153,4 +153,4 @@ friendly-lago-extension/
 - **GET /prompt**: View current prompt template
 - **GET /**: Health check
 
-Enjoy your new AI-powered Friendly Lago! 🦜✨
+Enjoy your new AI-powered Friendly Iago! 🦜✨
