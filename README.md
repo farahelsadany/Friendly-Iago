@@ -23,39 +23,39 @@ Friendly Lago helps your comments **land with kindness** without changing your s
 ## Core Principles
 
 ### 1. **Preserve the user's point and stance**
-   - Do not change the position or meaning—only the delivery
-   - Keep the core argument intact
+   - Does not change the position or meaning—only the delivery
+   - Keeps the core argument intact
 
 ### 2. **Avoid appearance talk**
-   - Redirect to behavior/ideas instead of physical attributes
-   - Focus on actions and consequences
+   - Redirects to behavior/ideas instead of physical attributes
+   - Focuses on actions and consequences
 
 ### 3. **Reduce harm**
-   - Remove insults, slurs, harassment
-   - Eliminate identity-based attacks and threats
-   - Avoid body-shaming language
+   - Removes insults, slurs, harassment
+   - Eliminates identity-based attacks and threats
+   - Avoids body-shaming language
 
 ### 4. **Respect free expression**
-   - Keep critique intact but constructive
-   - Maintain the user's right to express opinions
+   - Keeps critique intact but constructive
+   - Maintains the user's right to express opinions
 
 ### 5. **Tone & length matching**
-   - Match requested tone when specified
-   - Prefer one-liners, then short (≤40 words), then medium (≤80 words)
-   - Maintain similar length to original input
+   - Matches requested tone when specified
+   - Prefers one-liners, then short (≤40 words), then medium (≤80 words)
+   - Maintains similar length to original input
 
 ### 6. **Voice preservation**
-   - Keep user's slang/stylistic quirks if requested
-   - Maintain the commenter's unique tone
+   - Keeps user's slang/stylistic quirks if requested
+   - Maintains the commenter's unique tone
 
 ### 7. **Context-aware analysis**
-   - Use post text, nearby comments, images (alt/URLs)
-   - Consider author handle and site norms
-   - Adapt to the specific platform context
+   - Uses post text, nearby comments, images (alt/URLs)
+   - Considers author handle and site norms
+   - Adapts to the specific platform context
 
 ### 8. **Clarification when helpful**
-   - If a brief question could improve the rewrite, ask **one** short clarifying question
-   - Keep questions focused and actionable
+   - If a brief question could improve the rewrite, the model asks **one** short clarifying question
+   - Keeps questions focused and actionable
 
 ## Setup
 
