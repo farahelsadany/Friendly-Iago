@@ -4,24 +4,28 @@ import { HfInference } from '@huggingface/inference';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
+import { body, validationResult } from 'express-validator';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8787;
-
-// Initialize HuggingFace inference client
-const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+const API_VERSION = 'v1';
 
 // Model endpoints
 const MODELS = {
   toxic: "unitary/unbiased-toxic-roberta",
   offensive: "cardiffnlp/twitter-roberta-base-offensive",
   sentiment: "cardiffnlp/twitter-roberta-base-sentiment-latest",
-  flanT5: "google/flan-t5-base" // Using base model for faster inference
+  flanT5: "google/flan-t5-small" // Using base model for faster inference
 };
 
-// Fix the loadPromptTemplate function
+// Cache mechanism for prompt template
+let cachedPromptTemplate = null;
+let lastPromptLoad = 0;
+const PROMPT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 function loadPromptTemplate() {
   try {
     const promptPath = path.join(process.cwd(), 'PROMPT.md');
@@ -46,18 +50,31 @@ Focus only on changing the offensive part of the comment, not the entire comment
   }
 }
 
-// Get the prompt template
-const PROMPT_TEMPLATE = loadPromptTemplate();
+function getPromptTemplate() {
+  const now = Date.now();
+  if (cachedPromptTemplate && (now - lastPromptLoad) < PROMPT_CACHE_TTL) {
+    return cachedPromptTemplate;
+  }
+  cachedPromptTemplate = loadPromptTemplate();
+  lastPromptLoad = now;
+  return cachedPromptTemplate;
+}
+
+// Initialize the prompt template
+const PROMPT_TEMPLATE = getPromptTemplate();
 
 /**
  * Analyze toxicity using the unbiased-toxic-roberta model
  */
 async function analyzeToxicity(text) {
   try {
-    const result = await hf.textClassification({
-      model: MODELS.toxic,
-      inputs: text
-    });
+    const result = await withTimeout(
+      hf.textClassification({
+        model: MODELS.toxic,
+        inputs: text
+      }),
+      10000 // 10 second timeout
+    );
     
     console.log('Toxicity analysis result:', result); // Add logging
     
@@ -78,20 +95,26 @@ async function analyzeToxicity(text) {
  */
 async function analyzeOffensiveLanguage(text) {
   try {
-    const result = await hf.textClassification({
-      model: MODELS.offensive,
-      inputs: text
-    });
+    const result = await withTimeout(
+      hf.textClassification({
+        model: MODELS.offensive,
+        inputs: text
+      }),
+      10000
+    );
     
-    // Find the offensive label
     const offensiveLabel = result.find(item => item.label === 'offensive');
+    if (!offensiveLabel) {
+      throw new Error('Unexpected model response format');
+    }
+    
     return {
-      score: offensiveLabel ? offensiveLabel.score : 0,
-      isOffensive: offensiveLabel ? offensiveLabel.score > 0.5 : false
+      score: offensiveLabel.score,
+      isOffensive: offensiveLabel.score > 0.5
     };
   } catch (error) {
     console.error('Offensive language analysis error:', error);
-    return { score: 0, isOffensive: false };
+    throw error; // Consistent with other analysis functions
   }
 }
 
@@ -100,10 +123,13 @@ async function analyzeOffensiveLanguage(text) {
  */
 async function analyzeSentiment(text) {
   try {
-    const result = await hf.textClassification({
-      model: MODELS.sentiment,
-      inputs: text
-    });
+    const result = await withTimeout(
+      hf.textClassification({
+        model: MODELS.sentiment,
+        inputs: text
+      }),
+      10000
+    );
     
     // Find the highest scoring sentiment
     const topSentiment = result.reduce((prev, current) => 
@@ -128,23 +154,28 @@ async function analyzeSentiment(text) {
  */
 async function generateRewrite(text, originalLength) {
   try {
-    // Use the prompt template from PROMPT.md
-    const prompt = PROMPT_TEMPLATE
+    // Use the prompt template from PROMPT.md. Fetch the template on demand
+    // to honour cache TTL and avoid stale data.
+    const promptTemplate = getPromptTemplate();
+    const prompt = promptTemplate
       .replace('{length}', originalLength)
       .replace('{input}', text);
     
     console.log('Sending prompt to FLAN-T5:', prompt); // Add logging
     
-    const result = await hf.textGeneration({
-      model: MODELS.flanT5,
-      inputs: prompt,
-      parameters: {
-        max_new_tokens: Math.min(originalLength * 2, 200),
-        temperature: 0.7,
-        do_sample: true,
-        top_p: 0.9
-      }
-    });
+    const result = await withTimeout(
+      hf.textGeneration({
+        model: MODELS.flanT5,
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: Math.min(originalLength * 2, 200),
+          temperature: 0.7,
+          do_sample: true,
+          top_p: 0.9
+        }
+      }),
+      15000  // Longer timeout for generation
+    );
     
     console.log('FLAN-T5 response:', result); // Add logging
     return result.generated_text.trim();
@@ -290,37 +321,112 @@ async function analyzeComment({ text, prefs = {} }) {
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '2mb' }));
 
-// POST /analyze endpoint
-app.post('/analyze', async (req, res) => {
-  console.log('Received analyze request:', {
-    text: req.body.text,
-    hasBody: !!req.body,
-    contentType: req.headers['content-type']
+// Add the rate limiter configuration
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { ok: false, error: 'Too many requests, please try again later.' }
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// Add request validation middleware
+const validateAnalyzeRequest = [
+  body('text').isString().trim().isLength({ min: 1, max: 1000 }),
+  body('prefs').optional().isObject(),
+  body('context').optional().isObject(),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ ok: false, errors: errors.array() });
+    }
+    next();
+  }
+];
+
+// Add version prefix to all routes
+const apiRouter = express.Router();
+
+// Use versioned routes
+app.use(`/api/${API_VERSION}`, apiRouter);
+
+app.listen(PORT, () => {
+  console.log(`Friendly Iago AI backend listening on :${PORT}`);
+  console.log('Using models:');
+  console.log(`- Toxicity: ${MODELS.toxic}`);
+  console.log(`- Offensive: ${MODELS.offensive}`);
+  console.log(`- Sentiment: ${MODELS.sentiment}`);
+  console.log(`- Rewriting: ${MODELS.flanT5}`);
+});
+
+// Add timeout wrapper
+const withTimeout = (promise, ms) => {
+  const timeout = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Operation timed out')), ms);
   });
+  return Promise.race([promise, timeout]);
+};
+
+// Debug function for HuggingFace
+function debugHuggingFace() {
+  console.log('HuggingFace API Key:', process.env.HUGGINGFACE_API_KEY ? 'Present' : 'Missing');
+  console.log('HF Client:', hf ? 'Initialized' : 'Failed');
+}
+
+// HuggingFace health check
+async function checkHuggingFaceHealth() {
+  try {
+    await withTimeout(
+      hf.textClassification({
+        model: MODELS.toxic,
+        inputs: 'test'
+      }),
+      5000 // 5 second timeout
+    );
+    return true;
+  } catch (error) {
+    console.error('HuggingFace health check failed:', error);
+    return false;
+  }
+}
+
+// Enhanced health check endpoint
+apiRouter.get('/health', async (req, res) => {
+  const hfStatus = await checkHuggingFaceHealth();
+  const promptStatus = !!getPromptTemplate();
   
+  const health = {
+    ok: hfStatus && promptStatus,
+    services: {
+      huggingface: {
+        status: hfStatus ? 'operational' : 'failed',
+        models: MODELS
+      },
+      prompt: {
+        status: promptStatus ? 'operational' : 'failed',
+        lastUpdate: lastPromptLoad
+      }
+    },
+    version: API_VERSION,
+    uptime: process.uptime()
+  };
+  
+  res.status(health.ok ? 200 : 503).json(health);
+});
+
+apiRouter.post('/analyze', validateAnalyzeRequest, async (req, res) => {
+  const text = (req.body.text || '').trim();
   debugHuggingFace();
 
   try {
-    const { text, context = {}, prefs = {} } = req.body || {};
+    const { context = {}, prefs = {} } = req.body || {};
     
     if (!text || typeof text !== 'string') {
       console.log('Invalid text input');
       return res.status(400).json({ ok: false, error: 'Missing text' });
     }
 
-    // Test HuggingFace connection
-    try {
-      console.log('Testing toxic model...');
-      const testResult = await hf.textClassification({
-        model: MODELS.toxic,
-        inputs: 'test message'
-      });
-      console.log('Test result:', testResult);
-    } catch (hfError) {
-      console.error('HuggingFace test failed:', hfError);
-      throw new Error(`HuggingFace API error: ${hfError.message}`);
-    }
-    
     console.log('Analyzing comment...');
     const data = await analyzeComment({ text, prefs });
     console.log('Analysis complete:', data);
@@ -342,11 +448,7 @@ app.post('/analyze', async (req, res) => {
   }
 });
 
-// Simple health check
-app.get('/', (req, res) => res.send('Friendly Lago AI backend running.'));
-
-// Model status endpoint
-app.get('/status', async (req, res) => {
+apiRouter.get('/status', async (req, res) => {
   try {
     res.json({
       ok: true,
@@ -358,7 +460,8 @@ app.get('/status', async (req, res) => {
       },
       prompt: {
         source: 'PROMPT.md',
-        template: PROMPT_TEMPLATE
+        // Always fetch the latest template rather than using a stale global
+        template: getPromptTemplate()
       },
       status: 'operational'
     });
@@ -367,15 +470,16 @@ app.get('/status', async (req, res) => {
   }
 });
 
-// Prompt template endpoint
-app.get('/prompt', (req, res) => {
+apiRouter.get('/prompt', (req, res) => {
   try {
+    // Return the current prompt template and the expected parameter placeholders.
     res.json({
       ok: true,
       prompt: {
         source: 'PROMPT.md',
-        template: PROMPT_TEMPLATE,
-        parameters: ['${originalLength}', '${text}']
+        template: getPromptTemplate(),
+        // The template expects two parameters: {length} and {input}
+        parameters: ['{length}', '{input}']
       }
     });
   } catch (error) {
@@ -383,17 +487,19 @@ app.get('/prompt', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Friendly Lago AI backend listening on :${PORT}`);
-  console.log('Using models:');
-  console.log(`- Toxicity: ${MODELS.toxic}`);
-  console.log(`- Offensive: ${MODELS.offensive}`);
-  console.log(`- Sentiment: ${MODELS.sentiment}`);
-  console.log(`- Rewriting: ${MODELS.flanT5}`);
+// Add a redirect from root to versioned API
+app.get('/', (req, res) => {
+  res.redirect(`/api/${API_VERSION}/health`);
 });
 
-// Add this debug function
-function debugHuggingFace() {
-  console.log('HuggingFace API Key:', process.env.HUGGINGFACE_API_KEY ? 'Present' : 'Missing');
-  console.log('HF Client:', hf ? 'Initialized' : 'Failed');
-}
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    ok: false,
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message,
+    requestId: req.id
+  });
+});
